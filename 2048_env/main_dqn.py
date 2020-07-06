@@ -1,16 +1,17 @@
-from ppo_agent import PPO
+# from ppo_agent import PPO
 from dqn_agent import DQN
 from gym_2048 import Game2048Env
 import torch
 import numpy as np 
 import time
 import logger
+import os 
 from utils import log2_shaping, Perfomance_Saver, Model_Saver
 
 
 train_episodes = 20000
 test_episodes = 50
-ifrender = False
+ifrender = True
 eval_interval = 25
 epsilon_decay_interval = 100
 log_interval = 5
@@ -20,6 +21,7 @@ log_interval = 5
 def train():
     episodes = train_episodes
     logger.configure(dir="./log/", format_strs="stdout,tensorboard,log")
+    # 输入棋盘格状态 4x4=16个
     agent = DQN(num_state=16, num_action=4)
     env = Game2048Env()
 
@@ -117,7 +119,9 @@ def test(episodes=20, agent=None, load_path=None, ifrender=False, log=False):
             state = next_state
 
             if ifrender:
+                os.system("cls")
                 env.render()
+                time.sleep(0.1)
 
             if done:
                 if log:
@@ -142,5 +146,5 @@ def test(episodes=20, agent=None, load_path=None, ifrender=False, log=False):
 
 
 if __name__ == "__main__":
-    # test(episodes=test_episodes, ifrender=ifrender)
-    train()
+    test(episodes=test_episodes, ifrender=ifrender)
+    # train()

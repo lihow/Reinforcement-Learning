@@ -292,7 +292,7 @@ class Tetris:
         img = img[..., ::-1]
         img = Image.fromarray(img, "RGB")
 
-        img = img.resize((self.width * self.block_size, self.height * self.block_size))
+        img = img.resize((self.width * self.block_size, self.height * self.block_size), resample=Image.NEAREST)
         img = np.array(img)
         img[[i * self.block_size for i in range(self.height)], :, :] = 0
         img[:, [i * self.block_size for i in range(self.width)], :] = 0

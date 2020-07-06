@@ -51,6 +51,20 @@ class DQN():
         state = torch.unsqueeze(torch.FloatTensor(state), 0) 
         if not random and np.random.random() > self.epsilon or deterministic:  # greedy policy
             action_value = self.eval_net.forward(state)
+            '''
+            import torch
+            a = torch.tensor([[1,5,62,54], [2,6,2,6], [2,65,2,6]])
+            torch.max(a, 1)
+            ==>
+            torch.return_types.max(
+            values=tensor([62,  6, 65]),
+            indices=tensor([2, 3, 1]))
+
+            torch.max(a, 1)[1].numpy()
+            ==>
+            array([2, 3, 1], dtype=int64)
+            '''
+            # 返回最大值的下标
             action = torch.max(action_value.reshape(-1,4), 1)[1].data.numpy()
         else: # random policy
             action = np.random.randint(0,self.num_action)
