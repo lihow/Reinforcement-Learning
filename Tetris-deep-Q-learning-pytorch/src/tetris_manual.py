@@ -124,20 +124,20 @@ class Tetris:
     gameover = False
     last_collision_row = -1
     for y in range(len(piece)):
-        for x in range(len(piece[y])):
-            if self.board[pos["y"] + y][pos["x"] + x] and piece[y][x]:
-                if y > last_collision_row:
-                    last_collision_row = y
+      for x in range(len(piece[y])):
+        if self.board[pos["y"] + y][pos["x"] + x] and piece[y][x]:
+            if y > last_collision_row:
+                last_collision_row = y
 
     if pos["y"] - (len(piece) - last_collision_row) < 0 and last_collision_row > -1:
-        while last_collision_row >= 0 and len(piece) > 1:
-            gameover = True
-            last_collision_row = -1
-            del piece[0]
-            for y in range(len(piece)):
-                for x in range(len(piece[y])):
-                    if self.board[pos["y"] + y][pos["x"] + x] and piece[y][x] and y > last_collision_row:
-                        last_collision_row = y
+      while last_collision_row >= 0 and len(piece) > 1:
+        gameover = True
+        last_collision_row = -1
+        del piece[0]
+        for y in range(len(piece)):
+          for x in range(len(piece[y])):
+            if self.board[pos["y"] + y][pos["x"] + x] and piece[y][x] and y > last_collision_row:
+                last_collision_row = y
     return gameover
 
   def render(self):
@@ -180,18 +180,21 @@ class Tetris:
     curr_piece = [row[:] for row in self.piece]
     valid_xs = self.width - len(curr_piece[0])
     if ord("a") == key:
+      # TODO: 左右有障碍物，不允许移动 
       self.current_pos["x"] -= 1
       if self.current_pos["x"] < 0:
         self.current_pos["x"] = 0
     if ord("d") == key:
+      # TODO: 左右有障碍物，不允许移动 
       self.current_pos["x"] += 1
       if self.current_pos["x"] > valid_xs:
         self.current_pos["x"] = valid_xs
     if ord("s") == key:
       self.current_pos["y"] += 2
       if self.current_pos["y"] > self.height - 1:
-        self.current_pos["y"] = self.height - 1
+        self.current_pos["y"] = self.height - 2
     if ord("w") == key:
+      # TODO: 底端不允许旋转
       self.piece = self.rotate(self.piece) 
 
 
