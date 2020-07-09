@@ -3,6 +3,7 @@ from PIL import Image
 import cv2
 import random
 import time
+import copy
 
 class Tetris:
   piece_colors = [
@@ -87,6 +88,18 @@ class Tetris:
     for y in range(len(piece)):
       for x in range(len(piece[y])):
         if future_y + y > self.height - 1 or self.board[future_y + y][pos["x"] + x] and piece[y][x]:
+          return True
+    return False
+
+  def check_move_collision(self, piece, pos):
+    valid_xs = self.width - len(piece[0])
+    if pos["x"] > valid_xs  or pos["x"] < 0:
+      return True
+    if pos["y"] + len(piece) > self.height - 1:
+      return True
+    for y in range(len(piece)):
+      for x in range(len(piece[y])):
+        if self.board[pos["y"] + y][pos["x"]  + x] and piece[y][x]:
           return True
     return False
 
@@ -175,28 +188,21 @@ class Tetris:
                 (self.width * self.block_size + int(self.block_size / 2), 8 * self.block_size),
                 fontFace=cv2.FONT_HERSHEY_DUPLEX, fontScale=1.0, color=self.text_color)    
 
+    old_pos = copy.deepcopy(self.current_pos)
+    old_piece = copy.deepcopy(self.piece)
     cv2.imshow("Tetris Game", img)
     key = cv2.waitKey(500)
-    curr_piece = [row[:] for row in self.piece]
-    valid_xs = self.width - len(curr_piece[0])
     if ord("a") == key:
-      # TODO: 左右有障碍物，不允许移动 
       self.current_pos["x"] -= 1
-      if self.current_pos["x"] < 0:
-        self.current_pos["x"] = 0
     if ord("d") == key:
-      # TODO: 左右有障碍物，不允许移动 
       self.current_pos["x"] += 1
-      if self.current_pos["x"] > valid_xs:
-        self.current_pos["x"] = valid_xs
     if ord("s") == key:
       self.current_pos["y"] += 2
-      if self.current_pos["y"] > self.height - 1:
-        self.current_pos["y"] = self.height - 2
     if ord("w") == key:
-      # TODO: 底端不允许旋转
       self.piece = self.rotate(self.piece) 
-
+    if self.check_move_collision(self.piece, self.current_pos):
+      self.piece = copy.deepcopy(old_piece)
+      self.current_pos = copy.deepcopy(old_pos)
 
   def play(self):
     while not self.gameover:

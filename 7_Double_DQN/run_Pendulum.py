@@ -33,9 +33,6 @@ def train(RL):
           RL.learn()
 
       if total_steps - MEMORY_SIZE > 20000:
-          print('episode: ', i_episode,
-                'ep_r: ', round(ep_r, 2),
-                ' epsilon: ', round(RL.epsilon, 2))
           break
 
       observation = observation_
@@ -56,7 +53,7 @@ if __name__ == "__main__":
                   replace_target_iter=100, memory_size=2000,
                   e_greedy_increment=0.001, double_q=False)
   q_nature = train(DQN)
-  plt.plot(np.array(q_natural), c='r', label='natural')
+  plt.plot(np.array(q_nature), c='r', label='natural')
   plt.plot(np.array(q_double), c='b', label='double')
   plt.legend(loc='best')
   plt.ylabel('Q eval')
