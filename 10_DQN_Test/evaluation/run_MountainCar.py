@@ -119,6 +119,7 @@ if __name__ == "__main__":
   plt.xlabel('episode')
   plt.grid()
 
+  # 因为各个方法迭代的步数不一样，下面损失仅供参考  
   plt.figure(2)
   plt.plot(np.array(cost_prio), c='r', label='prioritized DQN')
   plt.plot(np.array(cost_dueling), c='b', label='dueling DQN')

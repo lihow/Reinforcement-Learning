@@ -106,6 +106,11 @@ def train(opt):
             continue
         epoch += 1
         batch = sample(replay_memory, min(len(replay_memory), opt.batch_size))
+        '''
+        a = [2, 3, 4], b = [5, 6, 7], c = [a, b]
+        e, f, g = zip(*c)
+        e = (2, 5), f = (3, 6), g = (4, 7) 类型为tuple
+        '''
         state_batch, reward_batch, next_state_batch, done_batch = zip(*batch)
         state_batch = torch.stack(tuple(state for state in state_batch))
         reward_batch = torch.from_numpy(np.array(reward_batch, dtype=np.float32)[:, None])
