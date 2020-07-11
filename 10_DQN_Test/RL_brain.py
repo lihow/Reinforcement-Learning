@@ -127,6 +127,23 @@ class Net(nn.Module):
     actions_value = self.out(x)
     return actions_value
 
+class DuelingNet(nn.Module):
+  def __init__(self, n_states, n_middle, n_actions):
+    super(DuelingNet, self).__init__()
+    self.fc1 = nn.Linear(n_states, n_middle)
+    self.adv = nn.Linear(n_middle, n_actions)
+    self.val = nn.Linear(n_middle, 1)
+  
+  def forward(self, x):
+    x = self.fc1(x)
+    x = F.relu(x)
+    adv = self.adv(x)
+    # val = self.val(x).expand(adv.size())
+    # actions_value = val + adv - adv.mean().expand(adv.size())
+    val = self.val(x)
+    actions_value = val + adv -adv.mean()
+    return actions_value
+
 
 # DQNPrioritizedReplay based DDQN
 class DQNPrioritizedReplay:
@@ -141,6 +158,7 @@ class DQNPrioritizedReplay:
                 batch_size=32,
                 e_greedy_increment=None,
                 prioritized = True,
+                dueling = False,
                 test = False,
                 ):
     self.n_actions = n_actions
@@ -155,6 +173,7 @@ class DQNPrioritizedReplay:
     self.epsilon = 0 if e_greedy_increment is not None else self.epsilon_max
 
     self.prioritized = prioritized
+    self.dueling = dueling
 
     # total learning step
     self.learn_step_counter = 0
@@ -178,8 +197,12 @@ class DQNPrioritizedReplay:
     self.cost_his = []
 
   def _build_net(self):
-    self.eval_net = Net(self.n_features, 50, self.n_actions)
-    self.target_net = Net(self.n_features, 50, self.n_actions)
+    if self.dueling:
+      self.eval_net = DuelingNet(self.n_features, 64, self.n_actions)
+      self.target_net = DuelingNet(self.n_features, 64, self.n_actions)
+    else:      
+      self.eval_net = Net(self.n_features, 50, self.n_actions)
+      self.target_net = Net(self.n_features, 50, self.n_actions)
 
   def store_transition(self, s, a, r, s_):
     if self.prioritized:
