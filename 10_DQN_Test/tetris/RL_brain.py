@@ -1,3 +1,4 @@
+#encoding=utf-8
 import numpy as np
 import torch
 import torch.nn as nn
@@ -120,11 +121,15 @@ class Net(nn.Module):
     super(Net, self).__init__()
     self.fc1 = nn.Linear(n_states, n_middle)
     self.fc1.weight.data.normal_(0, 0.1)
+    self.fc2 = nn.Linear(n_middle, n_middle)
+    self.fc2.weight.data.normal_(0, 0.1)
     self.out = nn.Linear(n_middle, n_actions)
     self.out.weight.data.normal_(0, 0.1)
   
   def forward(self, x):
     x = self.fc1(x)
+    x = F.relu(x)
+    x = self.fc2(x)
     x = F.relu(x)
     actions_value = self.out(x)
     return actions_value
@@ -133,11 +138,19 @@ class DuelingNet(nn.Module):
   def __init__(self, n_states, n_middle, n_actions):
     super(DuelingNet, self).__init__()
     self.fc1 = nn.Linear(n_states, n_middle)
+    self.fc1.weight.data.normal_(0, 0.1)
+    self.fc2 = nn.Linear(n_middle, n_middle)
+    self.fc2.weight.data.normal_(0, 0.1)
     self.adv = nn.Linear(n_middle, n_actions)
+    self.adv.weight.data.normal_(0, 0.1)
     self.val = nn.Linear(n_middle, 1)
+    self.val.weight.data.normal_(0, 0.1)
+    
   
   def forward(self, x):
     x = self.fc1(x)
+    x = F.relu(x)
+    x = self.fc2(x)
     x = F.relu(x)
     adv = self.adv(x)
     # val = self.val(x).expand(adv.size())
@@ -153,7 +166,7 @@ class DQNPrioritizedReplay:
                 n_actions, 
                 n_features, 
                 learning_rate=0.01, 
-                reward_decay=0.9,
+                reward_decay=0.99,
                 e_greedy=0.9,
                 replace_target_iter=300,
                 memory_size=500,
@@ -167,12 +180,12 @@ class DQNPrioritizedReplay:
     self.n_features = n_features
     self.lr = learning_rate
     self.gamma = reward_decay
-    self.epsilon_max = e_greedy
+    self.epsilon_min = 1 - e_greedy
     self.replace_target_iter = replace_target_iter
     self.memory_size = memory_size
     self.batch_size = batch_size
     self.epsilon_increment = e_greedy_increment
-    self.epsilon = 0 if e_greedy_increment is not None else self.epsilon_max
+    self.epsilon = 1 if e_greedy_increment is not None else self.epsilon_min
 
     self.prioritized = prioritized
     self.dueling = dueling
@@ -205,6 +218,10 @@ class DQNPrioritizedReplay:
     else:      
       self.eval_net = Net(self.n_features, 50, self.n_actions)
       self.target_net = Net(self.n_features, 50, self.n_actions)
+    
+    if torch.cuda.is_available():
+      self.eval_net = self.eval_net.cuda()
+      self.target_net = self.target_net.cuda()
 
   def store_transition(self,state, reward, next_state, done):
     if self.prioritized:
@@ -213,18 +230,24 @@ class DQNPrioritizedReplay:
     else:
       self.memory.append([state, reward, next_state, done])
   
-  def choose_action(self, next_actions, next_states, is_random=True):
+  def choose_action(self, next_actions, next_states, epsilon=None, is_random=True):
+    if epsilon is not None:
+      self.epsilon = epsilon
+    else:
+      # decrease epsilon
+      self.epsilon = self.epsilon - self.epsilon_increment if self.epsilon > self.epsilon_min else self.epsilon_min
+
     next_states = torch.stack(tuple(torch.FloatTensor(state) for state in next_states))
     predictions = self.eval_net(next_states)[:, 0]
 
-    if is_random and np.random.uniform() > self.epsilon:
+    if is_random and np.random.uniform() < self.epsilon:
       index = randint(0, next_states.shape[0] - 1)
     else:
       index = torch.argmax(predictions).item()
     
     action = next_actions[index]
     next_state = next_states[index, :]
-    
+
     return action, next_state
 
   def learn(self):
@@ -233,14 +256,22 @@ class DQNPrioritizedReplay:
         self.target_net.load_state_dict(self.eval_net.state_dict())
 
     if self.prioritized:
+      # batch_memory = (state, reward, next_state, done)
       tree_idx, batch_memory, ISWeights = self.memory.sample(self.batch_size)
+      state_batch = torch.FloatTensor(batch_memory[:, :self.n_features])
+      reward_batch = torch.FloatTensor(batch_memory[:, self.n_features:self.n_features+1])
+      next_state_batch = torch.FloatTensor(batch_memory[:, self.n_features+1:2*self.n_features+1])
+      done_batch = torch.FloatTensor(batch_memory[:, -1:])
     else:
       batch_memory = sample(self.memory, min(len(self.memory), self.batch_size))
-    # batch_memory = (s, [a, r], s_)
-    state_batch, reward_batch, next_state_batch, done_batch = zip(*batch_memory)
-    state_batch = torch.stack(tuple(state for state in state_batch))
-    reward_batch = torch.from_numpy(np.array(reward_batch, dtype=np.float32)[:, None])
-    next_state_batch = torch.stack(tuple(state for state in next_state_batch))
+      state_batch, reward_batch, next_state_batch, done_batch = zip(*batch_memory)
+      state_batch = torch.stack(tuple(state for state in state_batch))
+      reward_batch = torch.from_numpy(np.array(reward_batch, dtype=np.float32)[:, None])
+      next_state_batch = torch.stack(tuple(state for state in next_state_batch))
+
+    if torch.cuda.is_available():
+      state_batch = state_batch.cuda()
+      next_state_batch = next_state_batch.cuda()
 
     q_values = self.eval_net(state_batch)
     next_prediction_batch  = self.target_net(next_state_batch).detach()
@@ -254,7 +285,7 @@ class DQNPrioritizedReplay:
       loss = loss * torch.FloatTensor(ISWeights)
       td_errors  = loss.data.numpy()
       loss = torch.mean(loss)
-      self.memory.batch_update(tree_idx, td_errors )
+      self.memory.batch_update(tree_idx, td_errors)
     
     # print(loss)
     self.cost_his.append(loss.data.numpy())
@@ -263,8 +294,6 @@ class DQNPrioritizedReplay:
     loss.backward()
     self.optimizer.step()  
 
-    # increase epsilon
-    self.epsilon = self.epsilon + self.epsilon_increment if self.epsilon < self.epsilon_max else self.epsilon_max
     self.learn_step_counter += 1
   
   def save_model(self, episode):

@@ -1,3 +1,4 @@
+#encoding=utf-8
 """
 @author: Viet Nguyen <nhviet1009@gmail.com>
 """
