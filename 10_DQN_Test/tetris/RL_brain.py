@@ -7,6 +7,8 @@ from random import random, randint, sample
 from collections import deque
 np.random.seed(1)
 
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
 class SumTree(object):
     """
     This SumTree code is a modified version and the original code is from:
@@ -198,30 +200,26 @@ class DQNPrioritizedReplay:
       self.memory = deque(maxlen=self.memory_size)
     # consist of [target_net, evaluate_net]
     self.test = test
-    if self.test:
-      model_file = "model/model.pkl"
-      if torch.cuda.is_available():
-          self.eval_net = torch.load(model_file)
-      else:
-          self.eval_net = torch.load(model_file, map_location=lambda storage, loc: storage)
-      self.eval_net.eval()
-    else:
+    if self.test is False:
       self._build_net()
-    self.optimizer = torch.optim.Adam(self.eval_net.parameters(), lr=self.lr)
+      self.optimizer = torch.optim.Adam(self.eval_net.parameters(), lr=self.lr)
     self.loss_func = nn.MSELoss()
     self.cost_his = []
 
   def _build_net(self):
     if self.dueling:
-      self.eval_net = DuelingNet(self.n_features, 64, self.n_actions)
-      self.target_net = DuelingNet(self.n_features, 64, self.n_actions)
+      self.eval_net = DuelingNet(self.n_features, 64, self.n_actions).to(device)
+      self.target_net = DuelingNet(self.n_features, 64, self.n_actions).to(device)
     else:      
-      self.eval_net = Net(self.n_features, 50, self.n_actions)
-      self.target_net = Net(self.n_features, 50, self.n_actions)
+      self.eval_net = Net(self.n_features, 50, self.n_actions).to(device)
+      self.target_net = Net(self.n_features, 50, self.n_actions).to(device)
     
+  def load_model(self, model_path):
     if torch.cuda.is_available():
-      self.eval_net = self.eval_net.cuda()
-      self.target_net = self.target_net.cuda()
+      self.eval_net = torch.load(model_path)
+    else:
+      self.eval_net = torch.load(model_path, map_location=lambda storage, loc: storage)
+    self.eval_net.eval()
 
   def store_transition(self,state, reward, next_state, done):
     if self.prioritized:
@@ -238,7 +236,8 @@ class DQNPrioritizedReplay:
       self.epsilon = self.epsilon - self.epsilon_increment if self.epsilon > self.epsilon_min else self.epsilon_min
 
     next_states = torch.stack(tuple(torch.FloatTensor(state) for state in next_states))
-    predictions = self.eval_net(next_states)[:, 0]
+
+    predictions = self.eval_net(next_states.to(device))[:, 0]
 
     if is_random and np.random.uniform() < self.epsilon:
       index = randint(0, next_states.shape[0] - 1)
@@ -257,24 +256,22 @@ class DQNPrioritizedReplay:
 
     if self.prioritized:
       # batch_memory = (state, reward, next_state, done)
+      # batch过大或削弱惩罚？ 
       tree_idx, batch_memory, ISWeights = self.memory.sample(self.batch_size)
-      state_batch = torch.FloatTensor(batch_memory[:, :self.n_features])
-      reward_batch = torch.FloatTensor(batch_memory[:, self.n_features:self.n_features+1])
-      next_state_batch = torch.FloatTensor(batch_memory[:, self.n_features+1:2*self.n_features+1])
-      done_batch = torch.FloatTensor(batch_memory[:, -1:])
+      state_batch = torch.FloatTensor(batch_memory[:, :self.n_features]).to(device)
+      reward_batch = torch.FloatTensor(batch_memory[:, self.n_features:self.n_features+1]).to(device)
+      next_state_batch = torch.FloatTensor(batch_memory[:, self.n_features+1:2*self.n_features+1]).to(device)
+      done_batch = torch.FloatTensor(batch_memory[:, -1:]).to(device)
     else:
       batch_memory = sample(self.memory, min(len(self.memory), self.batch_size))
       state_batch, reward_batch, next_state_batch, done_batch = zip(*batch_memory)
-      state_batch = torch.stack(tuple(state for state in state_batch))
-      reward_batch = torch.from_numpy(np.array(reward_batch, dtype=np.float32)[:, None])
-      next_state_batch = torch.stack(tuple(state for state in next_state_batch))
+      state_batch = torch.stack(tuple(state for state in state_batch)).to(device)
+      reward_batch = torch.from_numpy(np.array(reward_batch, dtype=np.float32)[:, None]).to(device)
+      next_state_batch = torch.stack(tuple(state for state in next_state_batch)).to(device)
 
-    if torch.cuda.is_available():
-      state_batch = state_batch.cuda()
-      next_state_batch = next_state_batch.cuda()
 
     q_values = self.eval_net(state_batch)
-    next_prediction_batch  = self.target_net(next_state_batch).detach()
+    next_prediction_batch  = self.target_net(next_state_batch).detach().to(device)
     y_batch = torch.cat(
         tuple(reward if done else reward + self.gamma * prediction for reward, done, prediction in
               zip(reward_batch, done_batch, next_prediction_batch)))[:, None]
@@ -282,13 +279,13 @@ class DQNPrioritizedReplay:
     loss = self.loss_func(q_values, y_batch)
 
     if self.prioritized:
-      loss = loss * torch.FloatTensor(ISWeights)
-      td_errors  = loss.data.numpy()
+      loss = loss * torch.FloatTensor(ISWeights).to(device)
+      td_errors  = loss.cpu().detach().numpy()
       loss = torch.mean(loss)
       self.memory.batch_update(tree_idx, td_errors)
     
     # print(loss)
-    self.cost_his.append(loss.data.numpy())
+    self.cost_his.append(loss.cpu().detach().numpy())
 
     self.optimizer.zero_grad()
     loss.backward()
@@ -296,8 +293,8 @@ class DQNPrioritizedReplay:
 
     self.learn_step_counter += 1
   
-  def save_model(self, episode):
-    torch.save(self.eval_net, "model/model_"+str(episode)+".pkl")
+  def save_model(self, path):
+    torch.save(self.eval_net, path)
 
   def plot_cost(self):
     import matplotlib.pyplot as plt
