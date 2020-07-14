@@ -5,7 +5,8 @@ from gym import spaces
 from gym.utils import seeding
 
 import numpy as np
-
+import cv2
+from PIL import Image
 import itertools
 import logging
 from six import StringIO
@@ -38,6 +39,21 @@ def stack(flat, layers=16):
 class Game2048Env(gym.Env):   # directions 0, 1, 2, 3 are up, right, down, left
     metadata = {'render.modes': ['human', 'ansi']}
     max_steps = 10000
+    max_tile = 65536
+
+    cell_background_color = {2: (238,228,218), 4: (237,224,200), 8: (242,177,121),
+                            16: (245,149,99), 32: (246,124,95), 64: (246,94,59),
+                            128: (237,207,114), 256: (237,204,97), 512: (237,200,80),
+                            1024: (237,197,63), 2048: (237,194,46),
+                            4096: (238,228,218), 8192: (237,194,46), 16384: (242,177,121),
+                            32768: (245,149,99), 65536: (246,124,95), }
+    
+    cell_digit_color = {2: (119,110,101), 4: (119,110,101), 8: (249,246,242), 16: (249,246,242),
+                    32: (249,246,242), 64: (249,246,242), 128: (249,246,242),
+                    256: (249,246,242), 512: (249,246,242), 1024: (249,246,242),
+                    2048: (249,246,242),
+                    4096: (119,110,101), 8192: (249,246,242), 16384: (119,110,101),
+                    32768: (119,110,101), 65536: (249,246,242), }    
 
     def __init__(self):
         # Definitions for game. Board must be square.
