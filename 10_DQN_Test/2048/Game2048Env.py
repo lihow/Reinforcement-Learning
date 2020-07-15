@@ -21,7 +21,6 @@ class Game2048Env:
     self.max_illegal = 10
     self.num_illegal = 0
 
-    self.seed()
 
   def _get_info(self, info=None):
     if not info:
@@ -34,9 +33,6 @@ class Game2048Env:
     info['steps'] = self.steps
     return info
 
-  def seed(self, seed=None):
-    self.np_random, seed = seeding.np_random(seed)
-    return [seed]
 
   def set_illegal_move_reward(self, reward):
     self.illegal_move_reward = reward
@@ -61,10 +57,10 @@ class Game2048Env:
   def add_tile(self):
     possible_tiles = np.array([2, 4])
     tile_probabilities = np.array([0.9, 0.1])
-    val = self.np_random.choice(possible_tiles, 1, p=tile_probabilities)[0]
+    val = np.random.choice(possible_tiles, p =tile_probabilities)
     empties = self.empties()
     assert empties.shape[0]
-    empty_idx = self.np_random.choice(empties.shape[0])
+    empty_idx = np.random.choice(empties.shape[0])
     empty = empties[empty_idx]
     self.set(empty[0], empty[1], val)
 
@@ -120,7 +116,7 @@ class Game2048Env:
     for direction in range(4):
       try:
         self.move(direction, trial=True)
-        return false
+        return False
       except IllegalMove:
         pass
     return True

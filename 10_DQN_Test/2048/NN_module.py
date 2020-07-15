@@ -4,6 +4,19 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np 
 
+"""
+class torch.nn.Conv2d(in_channels, out_channels, kernel_size, stride=1, 
+  padding=0, dilation=1, groups=1, bias=True)
+in_channels: Number of channels in the input image
+out_channels: Number of channels produced by convolution
+kernel_size: Size of the convolving. Default: 1
+padding: Zero-padding added to both sides of input. Default: 0
+dilation: Spacing between kernel elements. Default: 1
+H_out = Floor((H_in + 2 x padding - dilation x (kernel_size - 1) - 1) / stride) + 1)
+if kernel_size = 3, stride = 1, padding = 1, dilation = 1:
+H_out = Floor((H_in + 2 - (3 - 1) - 1) / 1) + 1) = Floor(H_in) => H_out = H_in
+"""
+
 class CNN_Net(nn.Module):
   def __init__(self, input_len, output_num, conv_size=(32, 64), fc_size=(1024, 128), out_softmax=False):
     super(CNN_Net, self).__init__()
@@ -12,22 +25,8 @@ class CNN_Net(nn.Module):
     self.out_softmax = out_softmax
 
     self.conv1 = nn.Sequential(
-      """
-      class torch.nn.Conv2d(in_channels, out_channels, kernel_size, stride=1, 
-        padding=0, dilation=1, groups=1, bias=True)
-      in_channels: Number of channels in the input image
-      out_channels: Number of channels produced by convolution
-      kernel_size: Size of the convolving. Default: 1
-      padding: Zero-padding added to both sides of input. Default: 0
-      dilation: Spacing between kernel elements. Default: 1
-      H_out = Floor((H_in + 2 x padding - dilation x (kernel_size - 1) - 1) / stride) + 1)
-      if kernel_size = 3, stride = 1, padding = 1, dilation = 1:
-      H_out = Floor((H_in + 2 - (3 - 1) - 1) / 1) + 1) = Floor(H_in) => H_out = H_in
-      """
       nn.Conv2d(1, conv_size[0], kernel_size=3, stride=1, padding=1),
-      """
-      如果指定inplace=True，则对于上层网络传递下来的tensor直接进行修改，可以少存储变量，节省运算内存
-      """
+      # 如果指定inplace=True，则对于上层网络传递下来的tensor直接进行修改，可以少存储变量，节省运算内存
       nn.ReLU(inplace=True)
     )
     self.conv2 = nn.Sequential(
