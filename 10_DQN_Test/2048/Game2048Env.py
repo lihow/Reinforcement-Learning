@@ -3,12 +3,18 @@ import itertools
 import numpy as np
 import sys
 from six import StringIO
+from PIL import Image
+from PIL import ImageDraw
+from PIL import ImageFont
+import cv2
+import os
 
 class IllegalMove(Exception):
     pass
 
 class Game2048Env:
   max_steps = 10000
+
   def __init__(self):
     self.size = 4
     self.w = self.size
@@ -21,6 +27,7 @@ class Game2048Env:
     self.max_illegal = 10
     self.num_illegal = 0
 
+    _, self.digit_block_dict = self.read_digit_block("digit")
 
   def _get_info(self, info=None):
     if not info:
@@ -226,3 +233,37 @@ class Game2048Env:
     s += "{}\n\n".format(grid)
     outfile.write(s)
     return outfile
+
+  def render_img(self):
+    ground = np.array([[(125,135,146) for i in range(450)] for j in range(450)], dtype=np.uint8)
+    for i in range(4):
+      for j in range(4):
+        x_start = 10 + 110 * i
+        y_start = 10 + 110 * j
+        x_end = x_start + 100
+        y_end = y_start + 100
+        block = self.digit_block_dict[str(self.Matrix[i][j])]
+        # cv2.imshow("block", block)
+        # cv2.waitKey()
+        ground[x_start:x_end, y_start:y_end] = block
+    cv2.imshow("2048", ground)
+    cv2.waitKey(2)
+
+
+  def read_digit_block(self, path):
+    digit_block_dict = {}
+    dirs = os.listdir(path)
+    for file in dirs:
+      if file[-3:] == "png":
+        digit = file[:-4]
+        img = cv2.imread(os.path.join(path, file), 1)
+        img = cv2.resize(img, (100, 100))
+        digit_block_dict[digit] = img
+    if len(digit_block_dict) is not 17:
+      return False, digit_block_dict
+    return True, digit_block_dict
+
+if __name__ == "__main__":
+  pass
+
+
