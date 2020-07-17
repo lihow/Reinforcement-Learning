@@ -7,6 +7,8 @@ import copy
 from NN_module import CNN_Net
 from Buffer_module import Buffer
 
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
 class DQN():
   batch_size = 128
   lr = 1e-4
@@ -28,7 +30,8 @@ class DQN():
     self.enable_double = enable_double
     self.enable_priority = enable_priority
 
-    self.eval_net, self.target_net = CNN_Net(self.state_len, num_action,self.conv_size, self.fc_size), CNN_Net(self.state_len, num_action, self.conv_size, self.fc_size)
+    self.eval_net = CNN_Net(self.state_len, num_action,self.conv_size, self.fc_size)
+    self.target_net = CNN_Net(self.state_len, num_action, self.conv_size, self.fc_size)
 
     self.learn_step_counter = 0
     self.buffer = Buffer(self.num_state, 'priority', self.memory_capacity)

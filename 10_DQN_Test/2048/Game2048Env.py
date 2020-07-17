@@ -263,7 +263,35 @@ class Game2048Env:
       return False, digit_block_dict
     return True, digit_block_dict
 
+  def manual_play(self):
+    _, _, done, _ = self.reset()
+    while not done:
+      ground = np.array([[(125,135,146) for i in range(450)] for j in range(450)], dtype=np.uint8)
+      for i in range(4):
+        for j in range(4):
+          x_start = 10 + 110 * i
+          y_start = 10 + 110 * j
+          x_end = x_start + 100
+          y_end = y_start + 100
+          block = self.digit_block_dict[str(self.Matrix[i][j])]
+          ground[x_start:x_end, y_start:y_end] = block
+      cv2.imshow("2048", ground)
+      key = cv2.waitKey(20)
+      action = -1
+      if ord("w") == key:
+        action = 0
+      if ord("d") == key:
+        action = 1
+      if ord("s") == key:
+        action = 2
+      if ord("a") == key:
+        action = 3
+      if action != -1:
+        _, _, done, _ = self.step(action)
+
+
 if __name__ == "__main__":
-  pass
+  env = Game2048Env()
+  env.manual_play()
 
 
