@@ -41,10 +41,9 @@ def train():
 
       agent.store_transition(state, action, reward, next_state)
       state = next_state
-
-      env.render_img()
-      # if ifrender:
-        # env.render()
+      
+      if ifrender:
+        env.render_img()
 
       if agent.buffer.memory_counter % agent.train_interval == 0 and agent.buffer.memory_counter > agent.memory_capacity:
         loss = agent.update()

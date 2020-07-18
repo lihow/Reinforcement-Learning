@@ -30,8 +30,8 @@ class DQN():
     self.enable_double = enable_double
     self.enable_priority = enable_priority
 
-    self.eval_net = CNN_Net(self.state_len, num_action,self.conv_size, self.fc_size)
-    self.target_net = CNN_Net(self.state_len, num_action, self.conv_size, self.fc_size)
+    self.eval_net = CNN_Net(self.state_len, num_action,self.conv_size, self.fc_size).to(device)
+    self.target_net = CNN_Net(self.state_len, num_action, self.conv_size, self.fc_size).to(device)
 
     self.learn_step_counter = 0
     self.buffer = Buffer(self.num_state, 'priority', self.memory_capacity)
@@ -47,7 +47,7 @@ class DQN():
     """
     state = torch.unsqueeze(torch.FloatTensor(state), 0) 
     if not random and np.random.random() > self.epsilon or deterministic:
-      action_value = self.eval_net.forward(state)
+      action_value = self.eval_net.forward(state.to(device))
       action = torch.max(action_value.reshape(-1,4), 1)[1].data.numpy()[0]
     else:
       action = np.random.randint(0,self.num_action)
@@ -71,10 +71,10 @@ class DQN():
     else:
       batch_memory, _ = self.buffer.sample(self.batch_size)
 
-    batch_state = torch.FloatTensor(batch_memory[:, :self.num_state])
-    batch_action = torch.LongTensor(batch_memory[:, self.num_state: self.num_state+1].astype(int))
-    batch_reward = torch.FloatTensor(batch_memory[:, self.num_state+1: self.num_state+2])
-    batch_next_state = torch.FloatTensor(batch_memory[:,-self.num_state:])
+    batch_state = torch.FloatTensor(batch_memory[:, :self.num_state]).to(device)
+    batch_action = torch.LongTensor(batch_memory[:, self.num_state: self.num_state+1].astype(int)).to(device)
+    batch_reward = torch.FloatTensor(batch_memory[:, self.num_state+1: self.num_state+2]).to(device)
+    batch_next_state = torch.FloatTensor(batch_memory[:,-self.num_state:]).to(device)
 
     q_eval_total = self.eval_net(batch_state)
     q_eval = q_eval_total.gather(1, batch_action)
