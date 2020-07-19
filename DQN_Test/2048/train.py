@@ -5,8 +5,12 @@ import torch
 import numpy as np 
 import time
 import os 
+import matplotlib
+matplotlib.use('AGG')
+import matplotlib.pyplot as plt
 
 train_episodes = 20000
+# train_episodes = 20
 test_episodes = 50
 ifrender = False
 eval_interval = 25
@@ -17,18 +21,18 @@ def log2_shaping(s, divide=16):
     return s
 
 def train():
+  scores = []
   episodes = train_episodes
   agent = DQN(num_state=16, num_action=4)
   env = Game2048Env()
 
-  eval_max_score = 0
   for i in range(episodes):
     state, reward, done, info = env.reset()
     # 归一化
     state = log2_shaping(state)
 
-    start = time.time()
-    loss = None
+    # start = time.time()
+    # loss = None
     while True:
       if agent.buffer.memory_counter <= agent.memory_capacity:
         action = agent.select_action(state, random=True)
@@ -50,13 +54,22 @@ def train():
       
       if done:
         print("Epoch: {}/{}, highest: {}".format(i, episodes, info['highest']))
+        scores.append(info['highest'])
         if i % epsilon_decay_interval == 0:
           agent.epsilon_decay(i, episodes)
         break
 
-  end = time.time()
-  print('episode time:{} s\n'.format(end - start))
+    # end = time.time()
+    # print('episode time:{} s\n'.format(end - start))
+  return scores
 
 
 if __name__ == "__main__":
-  train()
+  scores = train()
+
+  plt.figure(figsize=(18, 6), dpi=200)
+  plt.figure(1)
+  plt.plot(np.array(scores), c='r')
+  plt.ylabel('highest score')
+  plt.xlabel('training steps')
+  plt.savefig('result.jpg')

@@ -48,7 +48,7 @@ class DQN():
     state = torch.unsqueeze(torch.FloatTensor(state), 0) 
     if not random and np.random.random() > self.epsilon or deterministic:
       action_value = self.eval_net.forward(state.to(device))
-      action = torch.max(action_value.reshape(-1,4), 1)[1].data.numpy()[0]
+      action = torch.max(action_value.reshape(-1,4), 1)[1].data.cpu().numpy()[0]
     else:
       action = np.random.randint(0,self.num_action)
     return action
@@ -88,11 +88,17 @@ class DQN():
     
     q_target = batch_reward + self.gamma * q_max
 
+    loss = (q_target - q_eval).pow(2).mean()
+
     if self.enable_priority:
-      abs_errors = (q_target - q_eval.data).abs()
-      self.buffer.update(tree_idx, abs_errors)
+      loss = loss * torch.FloatTensor(ISWeights).to(device)
+      td_errors  = loss.cpu().detach().numpy()
+      loss = torch.mean(loss)
+      self.buffer.update(tree_idx, td_errors)
+      # abs_errors = (q_target - q_eval.data).abs().detach().numpy()
+      # self.buffer.update(tree_idx, abs_errors)
       # loss = (torch.FloatTensor(ISWeights) * (q_target - q_eval).pow(2)).mean() 
-      loss = (q_target - q_eval).pow(2).mean()
+      # loss = (q_target - q_eval).pow(2).mean()
     else:
       loss = F.mse_loss(q_eval, q_target)
 

@@ -16,4 +16,5 @@ https://github.com/MorvanZhou/Reinforcement-learning-with-tensorflow
 9. 推箱子   
 ### 游戏算法改进
 1. DQN
-2. 其他方法推进
+2. Policy-Gradients  
+3. A3C...
