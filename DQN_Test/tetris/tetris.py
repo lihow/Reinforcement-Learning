@@ -183,6 +183,29 @@ class Tetris:
         # 返回采集的策略(横向位置和旋转次数)，和当前下方的状态
         return states
 
+    def get_next_board_states(self):
+        board_states = {}
+        piece_id = self.ind # 下一个下落块形状id
+        curr_piece = [row[:] for row in self.piece]
+        if piece_id == 0:  # O piece
+            num_rotations = 1
+        elif piece_id == 2 or piece_id == 3 or piece_id == 4:
+            num_rotations = 2
+        else:
+            num_rotations = 4
+
+        for i in range(num_rotations):
+            valid_xs = self.width - len(curr_piece[0])
+            for x in range(valid_xs + 1):
+                piece = [row[:] for row in curr_piece]
+                pos = {"x": x, "y": 0}
+                while not self.check_collision(piece, pos):
+                    pos["y"] += 1
+                self.truncate(piece, pos)
+                board_states[(x, i)] = self.store(piece, pos)
+            curr_piece = self.rotate(curr_piece)
+        return board_states
+
     def get_current_board_state(self):
         board = [x[:] for x in self.board]
         for y in range(len(self.piece)): # 行数即高度

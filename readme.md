@@ -7,7 +7,7 @@ https://github.com/MorvanZhou/Reinforcement-learning-with-tensorflow
 ### 游戏改进和添加    
 1. 添加俄罗斯方块的游戏的手动控制  
 2. 添加2048游戏的手动控制  
-3. 射击游戏 SpaceInvaders-v0  
+3. 射击游戏 SpaceInvaders-v0  弹球游戏Breakout-v0
 4. 人机五子棋  
 5. Flappy Bird  
 6. 乒乓游戏  
