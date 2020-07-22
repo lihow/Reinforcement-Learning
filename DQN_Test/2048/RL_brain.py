@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 import copy
-from NN_module import CNN_Net
+from NN_module import CNN_Net, DuelingNet
 from Buffer_module import Buffer
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -13,30 +13,32 @@ class DQN():
   batch_size = 128
   lr = 1e-4
   epsilon = 0.15
-  memory_capacity =  int(1e4)
+  memory_capacity = int(1e4)
   gamma = 0.99
-  q_network_iteration = 200
-  soft_update_theta = 0.1
+  replace_target_iter  = 200
   clip_norm_max = 1
-  train_interval = 5
-  conv_size = (32, 64)
-  fc_size = (512, 128)
 
-  def __init__(self, num_state, num_action, enable_double=False, enable_priority=True):
+  def __init__(self, num_state, num_action, dueling=False, prioritized=True):
     super(DQN, self).__init__()
     self.num_state = num_state
     self.num_action = num_action
     self.state_len = int(np.sqrt(self.num_state))
-    self.enable_double = enable_double
-    self.enable_priority = enable_priority
-
-    self.eval_net = CNN_Net(self.state_len, num_action,self.conv_size, self.fc_size).to(device)
-    self.target_net = CNN_Net(self.state_len, num_action, self.conv_size, self.fc_size).to(device)
-
+    self.dueling = dueling
+    self.prioritized = prioritized
+    self._build_net()
     self.learn_step_counter = 0
     self.buffer = Buffer(self.num_state, 'priority', self.memory_capacity)
     self.initial_epsilon = self.epsilon
     self.optimizer = torch.optim.Adam(self.eval_net.parameters(), lr=self.lr)
+    self.loss_func = nn.MSELoss()
+
+  def _build_net(self):
+    if self.dueling:
+      self.eval_net = DuelingNet(self.state_len, self.num_action).to(device)
+      self.target_net = DuelingNet(self.state_len, self.num_action).to(device)
+    else:
+      self.eval_net = CNN_Net(self.state_len, self.num_action).to(device)
+      self.target_net = CNN_Net(self.state_len, self.num_action).to(device)
 
   def select_action(self, state, random=False, deterministic=False):
     """
@@ -50,7 +52,7 @@ class DQN():
       action_value = self.eval_net.forward(state.to(device))
       action = torch.max(action_value.reshape(-1,4), 1)[1].data.cpu().numpy()[0]
     else:
-      action = np.random.randint(0,self.num_action)
+      action = np.random.randint(0, self.num_action)
     return action
 
   def store_transition(self, state, action, reward, next_state):
@@ -59,14 +61,11 @@ class DQN():
     transition = np.hstack((state, [action, reward], next_state))
     self.buffer.store(transition)
 
-  def update(self):
-    if self.learn_step_counter % self.q_network_iteration ==0 and self.learn_step_counter:
-      # self.target_net.load_state_dict(self.eval_net.state_dict())
-      for p_e, p_t in zip(self.eval_net.parameters(), self.target_net.parameters()):
-        p_t.data = self.soft_update_theta * p_e.data + (1 - self.soft_update_theta) * p_t.data
-    self.learn_step_counter+=1
+  def learn(self):
+    if self.learn_step_counter % self.replace_target_iter  ==0:
+      self.target_net.load_state_dict(self.eval_net.state_dict())
 
-    if self.enable_priority:
+    if self.prioritized:
       batch_memory, (tree_idx, ISWeights) = self.buffer.sample(self.batch_size)
     else:
       batch_memory, _ = self.buffer.sample(self.batch_size)
@@ -76,31 +75,21 @@ class DQN():
     batch_reward = torch.FloatTensor(batch_memory[:, self.num_state+1: self.num_state+2]).to(device)
     batch_next_state = torch.FloatTensor(batch_memory[:,-self.num_state:]).to(device)
 
-    q_eval_total = self.eval_net(batch_state)
-    q_eval = q_eval_total.gather(1, batch_action)
+    q_eval = self.eval_net(batch_state).gather(1, batch_action)
     q_next = self.target_net(batch_next_state).detach()
 
-    if self.enable_double:
-      q_eval_argmax = q_eval_total.max(1)[1].view(self.batch_size, 1)
-      q_max = q_next.gather(1, q_eval_argmax).view(self.batch_size, 1)
-    else:
-      q_max = q_next.max(1)[0].view(self.batch_size, 1)
-    
-    q_target = batch_reward + self.gamma * q_max
+    max_action_indexes = self.eval_net(batch_next_state).detach().argmax(1)
+    select_q_next = q_next.gather(1, max_action_indexes.unsqueeze(1))
 
-    loss = (q_target - q_eval).pow(2).mean()
+    q_target = batch_reward + self.gamma * select_q_next
 
-    if self.enable_priority:
+    loss = self.loss_func(q_eval, q_target)
+
+    if self.prioritized:
       loss = loss * torch.FloatTensor(ISWeights).to(device)
       td_errors  = loss.cpu().detach().numpy()
       loss = torch.mean(loss)
       self.buffer.update(tree_idx, td_errors)
-      # abs_errors = (q_target - q_eval.data).abs().detach().numpy()
-      # self.buffer.update(tree_idx, abs_errors)
-      # loss = (torch.FloatTensor(ISWeights) * (q_target - q_eval).pow(2)).mean() 
-      # loss = (q_target - q_eval).pow(2).mean()
-    else:
-      loss = F.mse_loss(q_eval, q_target)
 
     self.optimizer.zero_grad()
     loss.backward()
@@ -108,7 +97,7 @@ class DQN():
     nn.utils.clip_grad_norm_(self.eval_net.parameters(), self.clip_norm_max)
     self.optimizer.step()
 
-    return loss
+    self.learn_step_counter+=1
 
   def save(self, path=None, name='dqn_net.pkl'):
     path = self.save_path if not path else path

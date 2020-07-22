@@ -20,10 +20,9 @@ def log2_shaping(s, divide=16):
     s = np.log2(1 + s) / divide
     return s
 
-def train():
+def train(RL):
   scores = []
   episodes = train_episodes
-  agent = DQN(num_state=16, num_action=4)
   env = Game2048Env()
 
   for i in range(episodes):
@@ -34,38 +33,36 @@ def train():
     # start = time.time()
     # loss = None
     while True:
-      if agent.buffer.memory_counter <= agent.memory_capacity:
-        action = agent.select_action(state, random=True)
+      if RL.buffer.memory_counter <= RL.memory_capacity:
+        action = RL.select_action(state, random=True)
       else:
-        action = agent.select_action(state)
+        action = RL.select_action(state)
 
       next_state, reward, done, info = env.step(action)
       next_state = log2_shaping(next_state)
       reward = log2_shaping(reward, divide=1)
 
-      agent.store_transition(state, action, reward, next_state)
+      RL.store_transition(state, action, reward, next_state)
       state = next_state
       
       if ifrender:
         env.render_img()
 
-      if agent.buffer.memory_counter % agent.train_interval == 0 and agent.buffer.memory_counter > agent.memory_capacity:
-        loss = agent.update()
+      if RL.buffer.memory_counter > RL.memory_capacity:
+        RL.learn()
       
       if done:
         print("Epoch: {}/{}, highest: {}".format(i, episodes, info['highest']))
         scores.append(info['highest'])
         if i % epsilon_decay_interval == 0:
-          agent.epsilon_decay(i, episodes)
+          RL.epsilon_decay(i, episodes)
         break
-
-    # end = time.time()
-    # print('episode time:{} s\n'.format(end - start))
   return scores
 
 
 if __name__ == "__main__":
-  scores = train()
+  RL = DQN(num_state=16, num_action=4, dueling=True)
+  scores = train(RL)
 
   plt.figure(figsize=(18, 6), dpi=200)
   plt.figure(1)

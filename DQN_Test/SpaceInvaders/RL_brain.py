@@ -150,7 +150,7 @@ class CNNNet(nn.Module):
   # https://nbviewer.jupyter.org/github/lihow/kaggle/blob/master/cifar_10/ResNet-18-34-50-101.ipynb
   # H_out = Floor((H_in + 2 x padding - dilation x (kernel_size - 1) - 1) / stride) + 1)
   def __init__(self, in_channel, n_actions, conv_size=(32, 64), fc_size=(1024, 128)):
-    super(CNNDuliingNet, self).__init__()
+    super(CNNNet, self).__init__()
     # input shape = (84, 84, 1)
     self.pre_layer = nn.Sequential(
       nn.Conv2d(1, 32, kernel_size=3, stride=1, padding=1, bias=False),  # (84, 84, 32)

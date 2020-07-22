@@ -55,3 +55,36 @@ class CNN_Net(nn.Module):
     if self.out_softmax:
       output = F.softmax(output, dim=1)
     return output
+
+class DuelingNet(nn.Module):
+  def __init__(self, input_len, output_num):
+    super(DuelingNet, self).__init__()
+    self.input_len = input_len
+    # input [4, 4, 1]
+    self.cnn_layer = nn.Sequential(
+      # H_out = Floor((H_in + 2 x padding - dilation x (kernel_size - 1) - 1) / stride) + 1)
+      nn.Conv2d(1, 32, kernel_size=3, stride=1, padding=1, bias=False), # [4, 4, 32]
+      nn.BatchNorm2d(32),
+      nn.ReLU(inplace=True),
+      nn.Conv2d(32, 64, kernel_size=1, stride=2, bias=False), # [2, 2, 64]
+      nn.BatchNorm2d(64),
+      nn.ReLU(inplace=True),
+      nn.Conv2d(64, 128, kernel_size=1, stride=1, bias=False), # [2, 2, 128]
+      nn.BatchNorm2d(128)
+    )
+    self.fc_layer = nn.Sequential(
+      nn.Linear(2*2*128, 1024),
+      nn.Linear(1024, 512)
+    )
+    self.val_layer = nn.Linear(512, 1)
+    self.act_layer = nn.Linear(512, output_num)
+  
+  def forward(self, x):
+    x = x.reshape(-1,1,self.input_len, self.input_len)
+    x = self.cnn_layer(x)
+    x = x.view(x.size(0), -1)
+    x = self.fc_layer(x)
+    val = self.val_layer(x)
+    act = self.act_layer(x)
+    action_val = val + act - val.mean()
+    return action_val
