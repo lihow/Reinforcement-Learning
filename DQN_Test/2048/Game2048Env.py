@@ -247,7 +247,7 @@ class Game2048Env:
         # cv2.waitKey()
         ground[x_start:x_end, y_start:y_end] = block
     cv2.imshow("2048", ground)
-    cv2.waitKey(2)
+    cv2.waitKey(25)
 
 
   def read_digit_block(self, path):
