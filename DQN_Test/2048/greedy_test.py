@@ -26,8 +26,8 @@ def greedy_policy(ifrender=True):
       max_reward = 0
       for act in range(4):     
         _, _, done, info = env.step(act)
-        reward = np.sum(env.Matrix, axis=(0, 1))
-        # reward = info['highest']
+        # reward = np.sum(env.Matrix, axis=(0, 1))
+        reward = info['highest']
         if reward > max_reward:
           max_reward = reward
           action = act
