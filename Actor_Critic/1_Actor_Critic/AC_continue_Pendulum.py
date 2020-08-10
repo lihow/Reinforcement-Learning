@@ -9,6 +9,9 @@ np.random.seed(2)
 torch.manual_seed(2) 
 
 class ActorNet(nn.Module):
+  '''
+  负责选择动作
+  '''
   def __init__(self, action_bound, n_states, n_actions, n_middle=30):
     super(ActorNet, self).__init__()
     self.action_bound = action_bound
@@ -25,6 +28,7 @@ class ActorNet(nn.Module):
     x_mu = self.mu(x)
     x_mu = torch.tanh(x_mu)
     x_sigma = self.sigma(x)
+    x_sigma = F.softplus(x_sigma)
     '''
      a = torch.Tensor([[[[1], [2], [4]]]])  torch.Size([1, 1, 3, 1])
      b = torch.squeeze(a)                   torch.Size([3])
@@ -71,7 +75,11 @@ class CriticNet(nn.Module):
     output = self.fc2(x)
     return output
 
+
 class Critic(object):
+  '''
+  负责计算每个动作的分值
+  '''
   def __init__(self, n_features, lr=0.01):
     self.n_features = n_features
     self.net = CriticNet(n_features)
@@ -115,12 +123,13 @@ for i_episode in range(MAX_EPISODE):
   ep_rs = []
   while True:
     if RENDER: env.render()
-
     a = actor.choose_action(s)
     s_, r, done, info = env.step(a)
     r /= 10
 
+    # Critic根据Actor的动作打分
     td_error = critic.learn(s, r, s_)  # gradient = grad[r + gamma * V(s_) - V(s)]
+    # Actor通过Critic给出的分数去学习
     actor.learn(s, a, td_error)     # true_gradient = grad[logPi(s,a) * td_error]
 
     s = s_
@@ -128,7 +137,7 @@ for i_episode in range(MAX_EPISODE):
 
     ep_rs.append(r)
 
-    if done or t >= MAX_EP_STEPS:
+    if t >= MAX_EP_STEPS:
       ep_rs_sum = sum(ep_rs)
       if 'running_reward' not in globals():
         running_reward = ep_rs_sum

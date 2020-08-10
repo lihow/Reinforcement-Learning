@@ -45,7 +45,8 @@ from gym import envs
 # env = gym.make('VideoPinball-ram-v0') # 类似桌上弹球 **
 # env = gym.make('WizardOfWor-ram-v0') # 探索射击 **
 # env = gym.make('YarsRevenge-ram-v0') # 亚尔的复仇 飞行射击
-env = gym.make('Zaxxon-ram-v0') # 飞行射击
+# env = gym.make('Zaxxon-ram-v0') # 飞行射击
+env = gym.make('CarRacing-v0')
 
 
  
@@ -67,6 +68,7 @@ for i_episode in range(20):
         action = env.action_space.sample()
         observation, reward, done, info = env.step(action)
         print(observation)
+        print(" \n\n")
     if done:
         print("Episode finished after {} timesteps".format(t+1))
         break
